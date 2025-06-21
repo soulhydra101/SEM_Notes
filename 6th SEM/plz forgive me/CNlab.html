@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Code Snippets</title>
+<style>
+  body {
+    background: #121212;
+    color: #eee;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    margin: 2rem;
+  }
+  h2 {
+    margin-top: 2rem;
+    border-bottom: 1px solid #333;
+    padding-bottom: 0.3rem;
+  }
+  pre {
+    background: #1e1e1e;
+    border-radius: 5px;
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin-top: 0.5rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  button.copy-btn {
+    background: #333;
+    border: none;
+    color: #eee;
+    padding: 0.4rem 0.8rem;
+    margin: 0.3rem 0.3rem 0.3rem 0;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.3s ease;
+  }
+  button.copy-btn:hover {
+    background: #555;
+  }
+  .section {
+    margin-bottom: 3rem;
+  }
+  .top-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP COPY BUTTONS -->
+<div class="top-buttons">
+  <button class="copy-btn" data-target="fifo-read-write">Copy FIFO RW</button>
+  <button class="copy-btn" data-target="fifo-write-read">Copy FIFO WR</button>
+  <button class="copy-btn" data-target="tcp-client-code">Copy TCP Client</button>
+  <button class="copy-btn" data-target="tcp-server-code">Copy TCP Server</button>
+</div>
+
+<!-- FIFO RW Section -->
+<div class="section">
+  <h2>FIFO Pipeline - Read & Write</h2>
+  <pre id="fifo-read-write">
+//read_write.c
+#include&lt;stdio.h&gt;
+#include&lt;fcntl.h&gt;
+#include&lt;sys/types.h&gt;
+#include&lt;unistd.h&gt;
+#include&lt;string.h&gt;
+#define N 100
+
+void main(){
+int fd;
+char *myfifo = "fifo";
+char message[N];
+char buffer[N];
+mkfifo(myfifo, 0666);
+while(1){
+fd = open(myfifo, O_RDONLY);
+memset(buffer, 0, sizeof(buffer));
+read(fd, buffer, N);
+printf("Messege : %s \n", buffer);
+close(fd);
+if (strcmp(buffer, "exit")==0) break;
+memset(message, 0, sizeof(message));
+fd = open(myfifo, O_WRONLY);
+printf("Write a messege : ");
+gets(message);
+write(fd, message, N);
+close(fd);
+if (strcmp(message, "exit")==0) break;
+}
+}
+  </pre>
+  <button class="copy-btn" data-target="fifo-read-write">Copy FIFO Read & Write</button>
+</div>
+
+<!-- FIFO WR Section -->
+<div class="section">
+  <h2>FIFO Pipeline - Write & Read</h2>
+  <pre id="fifo-write-read">
+//fifo-write-read
+#include&lt;stdio.h&gt;
+#include&lt;fcntl.h&gt;
+#include&lt;sys/types.h&gt;
+#include&lt;unistd.h&gt;
+#include&lt;string.h&gt;
+#define N 100
+
+void main(){
+int fd;
+char *myfifo = "fifo";
+char message[N];
+char buffer[N];
+mkfifo(myfifo, 0666);
+while(1){
+fd = open(myfifo, O_WRONLY);
+memset(message, 0, sizeof(message));
+printf("Write some messege : ");
+gets(message);
+write(fd, message, N);
+close(fd);
+if (strcmp(message, "exit")==0) break;
+memset(buffer, 0, sizeof(buffer));
+fd = open(myfifo, O_RDONLY);
+read(fd, buffer, N);
+printf("Messege : %s \n", buffer);
+close(fd);
+if (strcmp(buffer, "exit")==0) break;
+}
+}
+  </pre>
+  <button class="copy-btn" data-target="fifo-write-read">Copy FIFO Write & Read</button>
+</div>
+
+<!-- TCP Client -->
+<div class="section">
+  <h2>TCP Client (tcp_client.c)</h2>
+  <pre id="tcp-client-code">
+//tcp_client.c
+#include&lt;stdio.h&gt;
+#include&lt;sys/types.h&gt;
+#include&lt;sys/socket.h&gt;
+#include&lt;netinet/in.h&gt;
+#include&lt;string.h&gt;
+#include&lt;arpa/inet.h&gt;
+#include&lt;unistd.h&gt;
+
+#define PORT 8080
+
+int main() {
+    int clnsock_fd;
+    struct sockaddr_in svraddr;
+    socklen_t svraddrlen = sizeof(struct sockaddr_in);
+    char message[1024];
+    char buffer[1024];
+
+    clnsock_fd = socket(AF_INET, SOCK_STREAM, 0);
+    svraddr.sin_family = AF_INET;
+    svraddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    svraddr.sin_port = htons(PORT);
+
+    if (connect(clnsock_fd, (struct sockaddr *) &svraddr, svraddrlen) &lt; 0) {
+        perror("Connect failed");
+        return 1;
+    }
+
+    while(1) {
+        memset(message, 0, sizeof(message));
+        printf("Enter data for Server : ");
+        if (fgets(message, sizeof(message), stdin) == NULL) {
+            break;
+        }
+        message[strcspn(message, "\n")] = 0;
+        send(clnsock_fd, message, strlen(message), 0);
+        if(strcmp(message, "exit") == 0) {
+            break;
+        }
+        memset(buffer, 0, sizeof(buffer));
+        ssize_t n = read(clnsock_fd, buffer, sizeof(buffer) - 1);
+        if(n &lt;= 0) {
+            break;
+        }
+        buffer[n] = 0;
+        printf("Received data from server : %s\n", buffer);
+        if(strcmp(buffer, "exit") == 0) {
+            break;
+        }
+    }
+    close(clnsock_fd);
+    return 0;
+}
+  </pre>
+  <button class="copy-btn" data-target="tcp-client-code">Copy TCP Client</button>
+</div>
+
+<!-- TCP Server -->
+<div class="section">
+  <h2>TCP Server (tcp_server.c)</h2>
+  <pre id="tcp-server-code">
+//tcp_server.c
+#include &lt;stdio.h&gt;
+#include &lt;sys/types.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;netinet/in.h&gt;
+#include &lt;string.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;stdlib.h&gt;
+
+#define PORT 8080
+
+int main() {
+    int svrsock_fd, new_conn;
+    struct sockaddr_in address;
+    socklen_t addrlen = sizeof(struct sockaddr_in);
+    int opt = 1;
+    char message[1024];
+    char buffer[1024];
+
+    svrsock_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (svrsock_fd == -1) {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (setsockopt(svrsock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) &lt; 0) {
+        perror("setsockopt");
+        close(svrsock_fd);
+        exit(EXIT_FAILURE);
+    }
+
+    memset(&address, 0, sizeof(address));
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(PORT);
+
+    if (bind(svrsock_fd, (struct sockaddr *)&address, sizeof(address)) &lt; 0) {
+        perror("bind failed");
+        close(svrsock_fd);
+        exit(EXIT_FAILURE);
+    }
+
+    if (listen(svrsock_fd, 3) &lt; 0) {
+        perror("listen");
+        close(svrsock_fd);
+        exit(EXIT_FAILURE);
+    }
+    printf("WAITING FOR CLIENT\n");
+
+    new_conn = accept(svrsock_fd, (struct sockaddr *)&address, &addrlen);
+    if (new_conn &lt; 0) {
+        perror("accept");
+        close(svrsock_fd);
+        exit(EXIT_FAILURE);
+    }
+    printf("Client connected\n");
+
+    while (1) {
+        memset(buffer, 0, sizeof(buffer));
+        ssize_t bytes_read = read(new_conn, buffer, sizeof(buffer) - 1);
+        if (bytes_read &lt; 0) {
+            perror("read");
+            break;
+        } else if (bytes_read == 0) {
+            printf("Client disconnected\n");
+            break;
+        }
+        buffer[bytes_read] = '\0';
+
+        printf("Received data from client: %s\n", buffer);
+        if (strcmp(buffer, "exit") == 0) {
+            break;
+        }
+
+        memset(message, 0, sizeof(message));
+        printf("Enter Data for client: ");
+        if (fgets(message, sizeof(message), stdin) == NULL) {
+            break;
+        }
+        message[strcspn(message, "\n")] = 0;
+
+        ssize_t bytes_sent = send(new_conn, message, strlen(message), 0);
+        if (bytes_sent == -1) {
+            perror("send");
+            break;
+        }
+
+        if (strcmp(message, "exit") == 0) {
+            break;
+        }
+    }
+
+    close(new_conn);
+    close(svrsock_fd);
+    return 0;
+}
+  </pre>
+  <button class="copy-btn" data-target="tcp-server-code">Copy TCP Server</button>
+</div>
+
+<!-- COPY SCRIPT -->
+<script>
+  document.querySelectorAll('button.copy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-target');
+      const code = document.getElementById(targetId).textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => {
+          btn.textContent = originalText;
+        }, 1500);
+      }).catch(() => {
+        alert('Failed to copy code');
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
